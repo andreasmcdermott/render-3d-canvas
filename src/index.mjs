@@ -1,3 +1,5 @@
+console.log("Source: https://github.com/andreasmcdermott/render-3d-canvas");
+
 let deg2rad = Math.PI / 180;
 
 let { sin, cos } = Math;
