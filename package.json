@@ -1,19 +1,18 @@
 {
-  "name": "vanilla",
+  "name": "render-3d-canvas",
   "version": "1.0.0",
-  "description": "JavaScript example starter project",
-  "main": "index.html",
+  "description": "Software 3D renderer in JS",
+  "main": "public/index.html",
+  "keywords": [
+    "javascript",
+    "canvas",
+    "3d"
+  ],
   "scripts": {
-    "start": "parcel index.html",
-    "build": "parcel build index.html"
+    "start": "esbuild src/index.mjs --bundle --outdir=public --out-extension:.js=.mjs --format=esm --platform=neutral --watch --servedir=public --define:IS_DEV=true",
+    "build": "esbuild src/index.mjs --bundle --outdir=public --out-extension:.js=.mjs --format=esm --platform=neutral --define:IS_DEV=false"
   },
-  "dependencies": { "parcel-bundler": "^1.6.1" },
   "devDependencies": {
-    "@babel/core": "7.2.0",
-    "typescript": "4.4.4"
-  },
-  "resolutions": {
-    "@babel/preset-env": "7.13.8"
-  },
-  "keywords": ["javascript", "starter"]
+    "esbuild": "^0.18.3"
+  }
 }
