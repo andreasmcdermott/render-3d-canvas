@@ -20,10 +20,28 @@ class Vec3 {
   copy() {
     return new Vec3(this.x, this.y, this.z);
   }
+  len() {
+    return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+  }
+  normalize() {
+    let len = this.len();
+    if (len !== 0) {
+      this.x /= len;
+      this.y /= len;
+      this.z /= len;
+    }
+    return this;
+  }
   scale(vec) {
     this.x *= vec.x;
     this.y *= vec.y;
     this.z *= vec.z;
+    return this;
+  }
+  scaleUniform(num) {
+    this.x *= num;
+    this.y *= num;
+    this.z *= num;
     return this;
   }
   add(vec) {
@@ -100,6 +118,26 @@ class Camera {
     this.pos = pos;
     this.rot = rot;
   }
+  move(vec) {
+    let change = new Vec3();
+    if (vec.z) {
+      let roty = this.rot.y * deg2rad;
+      let z = Math.cos(roty);
+      let x = Math.sin(roty);
+      change.x += vec.z * x;
+      change.z += vec.z * z;
+    }
+
+    if (vec.x) {
+      let roty = (this.rot.y + 90) * deg2rad;
+      let z = Math.cos(roty);
+      let x = Math.sin(roty);
+      change.x += vec.x * x;
+      change.z += vec.x * z;
+    }
+
+    this.pos.add(change.normalize().scaleUniform(0.5));
+  }
 }
 
 let boxmesh = new Mesh(
@@ -162,10 +200,10 @@ function drawPolygon(e, polygon, cam) {
       .add(e.pos)
       .scale(e.scale)
       .sub(cam.pos);
+    if (cam.rot.y) vec.rotateY(-cam.rot.y);
     if (cam.rot.x) vec.rotateX(-cam.rot.x);
-    if (cam.rot.y) vec.rotateX(-cam.rot.y);
-    if (cam.rot.z) vec.rotateX(-cam.rot.z);
-    if (vec.z <= 0) vec.z = 0.01;
+    if (cam.rot.z) vec.rotateZ(-cam.rot.z);
+    if (vec.z <= 0) vec.z = 0.001;
     vec.x /= vec.z;
     vec.y /= vec.z;
     vec.x = (vec.x * w) / 2 + w / 2;
@@ -211,24 +249,63 @@ box3.color = "hotpink";
 box3.lineWidth = 3;
 let floor = new Entity(
   floormesh,
-  new Vec3(-10, 0, 0),
+  new Vec3(-10, 0, -10),
   new Vec3(),
-  new Vec3(2, 1, 1)
+  new Vec3(4, 1, 4)
 );
 floor.color = "white";
 
+function lookAround({ movementX, movementY }) {
+  if (movementX) camera.rot.y += movementX;
+  if (movementY)
+    camera.rot.x = Math.max(Math.min(camera.rot.x + movementY, 90), -90);
+}
+
 let keys = {};
-window.addEventListener("keydown", (e) => {
-  keys[e.key] = true;
+window.addEventListener(
+  "keydown",
+  (e) => {
+    keys[e.key] = true;
+  },
+  { passive: true }
+);
+window.addEventListener(
+  "keyup",
+  (e) => {
+    delete keys[e.key];
+    // if (e.key === 'Escape' && document.pointerLockElement === canvas)
+  },
+  { passive: true }
+);
+window.addEventListener(
+  "resize",
+  (e) => {
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = w;
+    canvas.height = h;
+  },
+  { passive: true }
+);
+document.addEventListener(
+  "pointerlockchange",
+  () => {
+    if (document.pointerLockElement === canvas) {
+      document.addEventListener("mousemove", lookAround, { passive: true });
+    } else {
+      document.removeEventListener("mousemove", lookAround, { passive: true });
+    }
+  },
+  { passive: true }
+);
+
+canvas.addEventListener("click", async () => {
+  if (!document.pointerLockElement) {
+    await canvas.requestPointerLock({ unadjustedMovement: true });
+  }
 });
-window.addEventListener("keyup", (e) => {
-  delete keys[e.key];
-});
-window.addEventListener("resize", (e) => {
-  w = window.innerWidth;
-  h = window.innerHeight;
-  canvas.width = w;
-  canvas.height = h;
+canvas.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
 });
 
 let lt = performance.now();
@@ -238,10 +315,12 @@ function tick(t) {
   box2.rot.z -= 65 * dt;
   box3.rot.y -= 65 * dt;
 
-  if (keys.ArrowUp) camera.pos.z += 10 * dt;
-  if (keys.ArrowDown) camera.pos.z -= 10 * dt;
-  if (keys.ArrowLeft) camera.pos.x -= 10 * dt;
-  if (keys.ArrowRight) camera.pos.x += 10 * dt;
+  let movement = new Vec3();
+  if (keys.ArrowUp || keys.w) movement.z += 10 * dt;
+  if (keys.ArrowDown || keys.s) movement.z -= 10 * dt;
+  if (keys.ArrowLeft || keys.a) movement.x -= 10 * dt;
+  if (keys.ArrowRight || keys.d) movement.x += 10 * dt;
+  camera.move(movement);
 
   ctx.clearRect(0, 0, w, h);
   drawEntity(floor, camera);
