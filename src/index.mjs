@@ -23,6 +23,11 @@ class Vec3 {
   len() {
     return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
   }
+  set(vec) {
+    this.x = vec.x;
+    this.y = vec.y;
+    this.z = vec.z;
+  }
   normalize() {
     let len = this.len();
     if (len !== 0) {
@@ -99,12 +104,12 @@ class Mesh {
 
 class Entity {
   constructor(
-    mesh,
+    meshes,
     pos = new Vec3(),
     rot = new Vec3(),
     scale = new Vec3(1, 1, 1)
   ) {
-    this.mesh = mesh;
+    this.meshes = Array.isArray(meshes) ? meshes : [meshes];
     this.pos = pos;
     this.rot = rot;
     this.scale = scale;
@@ -143,51 +148,54 @@ class Camera {
 let boxmesh = new Mesh(
   // Front
   new Polygon(
-    new Vec3(-2, 2, -2),
-    new Vec3(2, 2, -2),
-    new Vec3(2, -2, -2),
-    new Vec3(-2, -2, -2)
+    new Vec3(-1, 1, -1),
+    new Vec3(1, 1, -1),
+    new Vec3(1, -1, -1),
+    new Vec3(-1, -1, -1)
   ),
   // Back
   new Polygon(
-    new Vec3(2, 2, 2),
-    new Vec3(-2, 2, 2),
-    new Vec3(-2, -2, 2),
-    new Vec3(2, -2, 2)
+    new Vec3(1, 1, 1),
+    new Vec3(-1, 1, 1),
+    new Vec3(-1, -1, 1),
+    new Vec3(1, -1, 1)
   ),
   // Left
   new Polygon(
-    new Vec3(-2, 2, 2),
-    new Vec3(-2, 2, -2),
-    new Vec3(-2, -2, -2),
-    new Vec3(-2, -2, 2)
+    new Vec3(-1, 1, 1),
+    new Vec3(-1, 1, -1),
+    new Vec3(-1, -1, -1),
+    new Vec3(-1, -1, 1)
   ),
   // Right
   new Polygon(
-    new Vec3(2, 2, -2),
-    new Vec3(2, 2, 2),
-    new Vec3(2, -2, 2),
-    new Vec3(2, -2, -2)
+    new Vec3(1, 1, -1),
+    new Vec3(1, 1, 1),
+    new Vec3(1, -1, 1),
+    new Vec3(1, -1, -1)
   ),
   // Top
   new Polygon(
-    new Vec3(-2, 2, 2),
-    new Vec3(2, 2, 2),
-    new Vec3(2, 2, -2),
-    new Vec3(-2, 2, -2)
+    new Vec3(-1, 1, 1),
+    new Vec3(1, 1, 1),
+    new Vec3(1, 1, -1),
+    new Vec3(-1, 1, -1)
   ),
   // Bottom
   new Polygon(
-    new Vec3(2, -2, -2),
-    new Vec3(-2, -2, -2),
-    new Vec3(-2, -2, 2),
-    new Vec3(2, -2, 2)
+    new Vec3(1, -1, -1),
+    new Vec3(-1, -1, -1),
+    new Vec3(-1, -1, 1),
+    new Vec3(1, -1, 1)
   )
 );
 
 function drawEntity(e, cam) {
-  for (let i = 0; i < e.mesh.polygons.length; ++i) {
-    drawPolygon(e, e.mesh.polygons[i], cam);
+  for (let m = 0; m < e.meshes.length; ++m) {
+    let mesh = e.meshes[m];
+    for (let i = 0; i < mesh.polygons.length; ++i) {
+      drawPolygon(e, mesh.polygons[i], cam);
+    }
   }
 }
 
@@ -196,9 +204,11 @@ function drawPolygon(e, polygon, cam) {
   for (let i = 0; i <= polygon.vertices.length; ++i) {
     let vec = polygon.vertices[i % polygon.vertices.length]
       .copy()
+
       .rotate(e.rot)
-      .add(e.pos)
+
       .scale(e.scale)
+      .add(e.pos)
       .sub(cam.pos);
     if (cam.rot.y) vec.rotateY(-cam.rot.y);
     if (cam.rot.x) vec.rotateX(-cam.rot.x);
@@ -237,19 +247,29 @@ for (let x = 0; x < 20; ++x) {
   }
 }
 
-let camera = new Camera(new Vec3(0, 1, 0));
-let box1 = new Entity(boxmesh, new Vec3(-4, 1, 10));
+let camera = new Camera(new Vec3(0, 2, 0));
+let box1 = new Entity(boxmesh, new Vec3(0, 1, 5), undefined, new Vec3(2, 2, 2));
 box1.color = "skyblue";
 box1.lineWidth = 3;
-let box2 = new Entity(boxmesh, new Vec3(2, 1, 15));
+let box2 = new Entity(
+  boxmesh,
+  new Vec3(-10, 1, 10),
+  undefined,
+  new Vec3(2, 2, 2)
+);
 box2.color = "gold";
 box2.lineWidth = 3;
-let box3 = new Entity(boxmesh, new Vec3(12, 1, 20));
+let box3 = new Entity(
+  boxmesh,
+  new Vec3(10, 1, 15),
+  undefined,
+  new Vec3(2, 2, 2)
+);
 box3.color = "hotpink";
 box3.lineWidth = 3;
 let floor = new Entity(
   floormesh,
-  new Vec3(-10, 0, -10),
+  new Vec3(-20, 0, -20),
   new Vec3(),
   new Vec3(4, 1, 4)
 );
@@ -262,6 +282,34 @@ function lookAround({ movementX, movementY }) {
 }
 
 let keys = {};
+let lt = performance.now();
+
+function tick(t) {
+  let dt = (t - lt) / 1000;
+  box1.rot.x += 65 * dt;
+  box2.rot.z -= 65 * dt;
+  box3.rot.y -= 65 * dt;
+
+  let movement = new Vec3();
+  if (keys.ArrowUp || keys.w) movement.z += 10 * dt;
+  if (keys.ArrowDown || keys.s) movement.z -= 10 * dt;
+  if (keys.ArrowLeft || keys.a) movement.x -= 10 * dt;
+  if (keys.ArrowRight || keys.d) movement.x += 10 * dt;
+  camera.move(movement);
+
+  ctx.clearRect(0, 0, w, h);
+
+  drawEntity(floor, camera);
+  drawEntity(box1, camera);
+  drawEntity(box2, camera);
+  drawEntity(box3, camera);
+
+  ctx.fillStyle = "white";
+  ctx.fillText(`${Math.round(1000 / (t - lt))} FPS`, 10, 10);
+  lt = t;
+  requestAnimationFrame(tick);
+}
+
 window.addEventListener(
   "keydown",
   (e) => {
@@ -307,30 +355,5 @@ canvas.addEventListener("click", async () => {
 canvas.addEventListener("contextmenu", (e) => {
   e.preventDefault();
 });
-
-let lt = performance.now();
-function tick(t) {
-  let dt = (t - lt) / 1000;
-  box1.rot.x += 65 * dt;
-  box2.rot.z -= 65 * dt;
-  box3.rot.y -= 65 * dt;
-
-  let movement = new Vec3();
-  if (keys.ArrowUp || keys.w) movement.z += 10 * dt;
-  if (keys.ArrowDown || keys.s) movement.z -= 10 * dt;
-  if (keys.ArrowLeft || keys.a) movement.x -= 10 * dt;
-  if (keys.ArrowRight || keys.d) movement.x += 10 * dt;
-  camera.move(movement);
-
-  ctx.clearRect(0, 0, w, h);
-  drawEntity(floor, camera);
-  drawEntity(box1, camera);
-  drawEntity(box2, camera);
-  drawEntity(box3, camera);
-  ctx.fillStyle = "white";
-  ctx.fillText(`${Math.round(1000 / (t - lt))} FPS`, 10, 10);
-  lt = t;
-  requestAnimationFrame(tick);
-}
 
 requestAnimationFrame(tick);
